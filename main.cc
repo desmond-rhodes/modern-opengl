@@ -11,10 +11,13 @@ int main(int argc, char* argv[]) {
 	glfwInit();
 	GLFWwindow* window {glfwCreateWindow(640, 480, "Hello, world!", NULL, NULL)};
 	glfwMakeContextCurrent(window);
+	gl3wInit();
 
 	auto poll_limit_last {std::chrono::steady_clock::now()};
 	std::chrono::microseconds poll_limit_time {16666}; /* 60Hz */
 
+	GLfloat blue[] {0.0f, 0.0f, 0.25f, 0.0f};
+	glClearBufferfv(GL_COLOR, 0, blue);
 	glfwSwapBuffers(window);
 
 	while (!glfwWindowShouldClose(window)) {
