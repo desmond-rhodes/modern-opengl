@@ -9,6 +9,11 @@ int main(int argc, char* argv[]) {
 	std::cin.tie(nullptr);
 
 	glfwInit();
+	glfwWindowHint(GLFW_CLIENT_API, GLFW_OPENGL_API);
+	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
+	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 5);
+	glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GLFW_TRUE);
+	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 	GLFWwindow* window {glfwCreateWindow(640, 480, "Hello, world!", NULL, NULL)};
 	glfwMakeContextCurrent(window);
 	gl3wInit();
