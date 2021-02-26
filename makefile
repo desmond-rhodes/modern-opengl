@@ -28,6 +28,5 @@ clean:
 	rm -f $(TMP)*
 
 .PHONY: clean-all
-clean-all:
-	make clean
+clean-all: clean
 	rm -f lib/*.o
