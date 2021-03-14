@@ -1,5 +1,6 @@
 OUT := opengl
-OBJS := main.o lib/gl3w.o
+OBJS := main.o shader-loader.o
+OBJS += lib/gl3w.o
 
 CC := x86_64-w64-mingw32-gcc-posix
 CFLAGS := -std=c17 -Iinclude
