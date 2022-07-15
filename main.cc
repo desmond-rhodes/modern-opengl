@@ -18,9 +18,13 @@ int main() {
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 5);
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-	GLFWwindow* window {glfwCreateWindow(1280, 960, "Hello, world!", nullptr, nullptr)};
+	GLFWwindow* window {glfwCreateWindow(1280, 960, "Modern OpenGL", nullptr, nullptr)};
 	if (!window)
 		return -1;
+
+	glfwSetFramebufferSizeCallback(window, [](GLFWwindow*, int width, int height) {
+		glViewport(0, 0, width, height);
+	});
 
 	glfwMakeContextCurrent(window);
 	if (gl3wInit())
@@ -38,61 +42,64 @@ int main() {
 	}
 	glUseProgram(shader);
 
-	GLint position_location {glGetAttribLocation(shader, "vPosition")};
-	GLint colour_location {glGetAttribLocation(shader, "vColour")};
-
-	GLfloat clear_colour[] {0.0f, 0.0f, 0.0f, 0.0f};
-	constexpr GLuint NumVertices {4};
-	GLfloat vertices[NumVertices * 2] {
-		 0.5f,  0.5f,
-		-0.5f,  0.5f,
-		-0.5f, -0.5f,
-		 0.5f, -0.5f
-	};
-	GLfloat colours[NumVertices * 3] {
-		1.0f, 0.0f, 0.0f,
-		0.0f, 1.0f, 0.0f,
-		0.0f, 0.0f, 1.0f,
-		0.0f, 1.0f, 1.0f
-	};
-	constexpr GLuint NumElements {4};
-	GLuint elements[NumElements] {1, 0, 2, 3};
-
+	GLuint const bindingindex {0};
 	GLuint vao;
-	glGenVertexArrays(1, &vao);
-	glBindVertexArray(vao);
+	{
+		glGenVertexArrays(1, &vao);
+		glBindVertexArray(vao);
+
+		GLint const attrib_position {glGetAttribLocation(shader, "vPosition")};
+		glEnableVertexAttribArray(attrib_position);
+		glVertexAttribFormat(attrib_position, 2, GL_FLOAT, GL_FALSE, 0);
+		glVertexAttribBinding(attrib_position, bindingindex);
+
+		GLint const attrib_color {glGetAttribLocation(shader, "vColour")};
+		glEnableVertexAttribArray(attrib_color);
+		glVertexAttribFormat(attrib_color, 3, GL_FLOAT, GL_FALSE, 2*sizeof(GLfloat));
+		glVertexAttribBinding(attrib_color, bindingindex);
+
+		glBindVertexArray(0);
+	}
 
 	GLuint vbo;
-	glCreateBuffers(1, &vbo);
-	glNamedBufferStorage(vbo, sizeof(vertices) + sizeof(colours), nullptr, GL_DYNAMIC_STORAGE_BIT);
-	glNamedBufferSubData(vbo, 0, sizeof(vertices), vertices);
-	glNamedBufferSubData(vbo, sizeof(vertices), sizeof(colours), colours);
-	glBindBuffer(GL_ARRAY_BUFFER, vbo);
-
-	glVertexAttribPointer(position_location, 2, GL_FLOAT, GL_FALSE, 0, (GLvoid*) 0);
-	glEnableVertexAttribArray(position_location);
-
-	glVertexAttribPointer(colour_location, 3, GL_FLOAT, GL_FALSE, 0, (GLvoid*) sizeof(vertices));
-	glEnableVertexAttribArray(colour_location);
+	{
+		GLfloat vertex[] {
+			 0.5f,  0.5f, 1.0f, 0.0f, 0.0f,
+			-0.5f,  0.5f, 0.0f, 1.0f, 0.0f,
+			-0.5f, -0.5f, 0.0f, 0.0f, 1.0f,
+			 0.5f, -0.5f, 0.0f, 1.0f, 1.0f
+		};
+		glCreateBuffers(1, &vbo);
+		glNamedBufferStorage(vbo, sizeof(vertex), vertex, 0);
+	}
 
 	GLuint ebo;
-	glCreateBuffers(1, &ebo);
-	glNamedBufferStorage(ebo, sizeof(elements), elements, 0);
+	{
+		GLuint elements[] {1, 0, 2, 3};
+		glCreateBuffers(1, &ebo);
+		glNamedBufferStorage(ebo, sizeof(elements), elements, 0);
+	}
+
+	glBindVertexArray(vao);
+	glBindVertexBuffer(bindingindex, vbo, 0, 5*sizeof(GLfloat));
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
 
-	glClearBufferfv(GL_COLOR, 0, clear_colour);
-	glDrawElements(GL_TRIANGLE_STRIP, NumElements, GL_UNSIGNED_INT, 0);
-	glfwSwapBuffers(window);
+	GLfloat const fill[] {0.0f, 0.0f, 0.0f, 0.0f};
 
 	auto poll_limit_last {std::chrono::steady_clock::now()};
 	std::chrono::microseconds poll_limit_time {16666}; /* 60Hz */
 
 	while (!glfwWindowShouldClose(window)) {
+		glClearBufferfv(GL_COLOR, 0, fill);
+		glDrawElements(GL_TRIANGLE_STRIP, 4, GL_UNSIGNED_INT, 0);
+
+		glfwSwapBuffers(window);
+
 		glfwPollEvents();
+
 		std::this_thread::sleep_for(poll_limit_time - (std::chrono::steady_clock::now() - poll_limit_last));
 		poll_limit_last += poll_limit_time;
 	}
 
-	std::cout << "Hello, world!\n";
 	return 0;
 }
