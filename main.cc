@@ -6,7 +6,7 @@
 #include <thread>
 #include <stdexcept>
 
-int main(int argc, char* argv[]) {
+int main() {
 	std::ios_base::sync_with_stdio(false);
 	std::cin.tie(nullptr);
 
@@ -16,7 +16,7 @@ int main(int argc, char* argv[]) {
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 5);
 	glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GLFW_TRUE);
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-	GLFWwindow* window {glfwCreateWindow(640, 480, "Hello, world!", nullptr, nullptr)};
+	GLFWwindow* window {glfwCreateWindow(1280, 960, "Hello, world!", nullptr, nullptr)};
 	glfwMakeContextCurrent(window);
 	gl3wInit();
 

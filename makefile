@@ -1,33 +1,31 @@
 OUT := opengl
-OBJS := main.o shader-loader.o
-OBJS += lib/gl3w.o
+OBJS := main.o shader-loader.o lib/gl3w.o
+DEPS := $(OBJS:%.o=%.d)
 
 CC := x86_64-w64-mingw32-gcc-posix
-CFLAGS := -std=c17 -Iinclude
+CFLAGS := -std=c17
 
 CXX := x86_64-w64-mingw32-g++-posix
-CXXFLAGS := -std=c++17 -Iinclude
+CXXFLAGS := -std=c++17 -Wall -Wextra
+
+CPPFLAGS := -Iinclude
 
 LDFLAGS := -Llib
-LDLIBS := -lglfw3 -lgdi32
-LDLIBS += -static-libgcc -static-libstdc++ -static -lwinpthread
+LDLIBS := -lglfw3 -lgdi32 -static-libgcc -static-libstdc++ -static -lwinpthread
 
-TMP := .$(OUT)
+DEPFLAGS = -MT $@ -MMD -MP -MF $*.d
 
 $(OUT): $(OBJS)
-	touch $(TMP).cc
-	make $(TMP)
-	mv $(TMP) $@
-	rm $(TMP)*
+	$(LINK.cc) $^ $(LOADLIBES) $(LDLIBS) -o ._$@ && mv ._$@ $@
 
-$(TMP): $(TMP).cc $(OBJS)
+%.o: %.c
+	$(COMPILE.c) $(DEPFLAGS) $(OUTPUT_OPTION) $<
+
+%.o: %.cc
+	$(COMPILE.cc) $(DEPFLAGS) $(OUTPUT_OPTION) $<
 
 .PHONY: clean
 clean:
-	rm -f *.o
-	rm -f $(OUT)
-	rm -f $(TMP)*
+	rm -f $(DEPS) $(OBJS) $(OUT)
 
-.PHONY: clean-all
-clean-all: clean
-	rm -f lib/*.o
+include $(wildcard $(DEPS))
