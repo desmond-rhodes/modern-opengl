@@ -8,20 +8,22 @@ CFLAGS := -std=c17
 CXX := x86_64-w64-mingw32-g++-posix
 CXXFLAGS := -std=c++17 -Wall -Wextra
 
-CPPFLAGS := -Iinclude
-
-LDFLAGS := -Llib
-LDLIBS := -lglfw3 -lgl3w -lgdi32 -static-libgcc -static-libstdc++ -static -lwinpthread
-
-DEPFLAGS = -MT $@ -MMD -MP -MF $*.d
-
 AR := x86_64-w64-mingw32-ar
 RANLIB := x86_64-w64-mingw32-ranlib
+
+CPPFLAGS := -Iinclude
+
+TARGET_ARCH := -Og
+
+LDFLAGS := -Llib
+LDLIBS := -lglfw3 -lgl3w -lgdi32 -static-libgcc -static-libstdc++ -static -lpthread
+
+DEPFLAGS = -MT $@ -MMD -MP -MF $*.d
 
 $(OUT): $(OBJS)
 	$(LINK.cc) $^ $(LOADLIBES) $(LDLIBS) -o ._$@ && mv ._$@ $@
 
-$(OBJS) : | .setup
+$(OBJS): | .setup
 
 %.o: %.cc
 	$(COMPILE.cc) $(DEPFLAGS) $(OUTPUT_OPTION) $<
