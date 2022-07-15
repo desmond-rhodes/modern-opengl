@@ -1,41 +1,45 @@
 #include "shader-loader.hh"
+#include "cleanup.hh"
 #include <GL/gl3w.h>
 #include <GLFW/glfw3.h>
 #include <iostream>
 #include <chrono>
 #include <thread>
-#include <stdexcept>
 
 int main() {
 	std::ios_base::sync_with_stdio(false);
 	std::cin.tie(nullptr);
 
-	glfwInit();
-	glfwWindowHint(GLFW_CLIENT_API, GLFW_OPENGL_API);
+	if (!glfwInit())
+		return -1;
+	cleanup c_glfw {[&]{ glfwTerminate(); }};
+
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 5);
-	glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GLFW_TRUE);
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+
 	GLFWwindow* window {glfwCreateWindow(1280, 960, "Hello, world!", nullptr, nullptr)};
-	glfwMakeContextCurrent(window);
-	gl3wInit();
-
-	GLuint shader_program;
-	try {
-		std::vector<shader_loader::info> shader_info {
-			{GL_VERTEX_SHADER, "shader.vert"},
-			{GL_FRAGMENT_SHADER, "shader.frag"}
-		};
-		shader_program = shader_loader::create_program(shader_info);
-	}
-	catch (std::exception const& error) {
-		std::cerr << error.what() << '\n';
+	if (!window)
 		return -1;
-	}
-	glUseProgram(shader_program);
 
-	GLint position_location {glGetAttribLocation(shader_program, "vPosition")};
-	GLint colour_location {glGetAttribLocation(shader_program, "vColour")};
+	glfwMakeContextCurrent(window);
+	if (gl3wInit())
+		return -1;
+
+	std::cout << "OpenGL " << glGetString(GL_VERSION) << ", GLSL " << glGetString(GL_SHADING_LANGUAGE_VERSION) << '\n';
+
+	GLuint shader;
+	{
+		GLenum const type[] {GL_VERTEX_SHADER, GL_FRAGMENT_SHADER};
+		char const* const filename[] {"shader.vert", "shader.frag"};
+		shader = create_shader(2, type, filename, std::cerr);
+		if (!shader)
+			return -1;
+	}
+	glUseProgram(shader);
+
+	GLint position_location {glGetAttribLocation(shader, "vPosition")};
+	GLint colour_location {glGetAttribLocation(shader, "vColour")};
 
 	GLfloat clear_colour[] {0.0f, 0.0f, 0.0f, 0.0f};
 	constexpr GLuint NumVertices {4};
@@ -89,7 +93,6 @@ int main() {
 		poll_limit_last += poll_limit_time;
 	}
 
-	glfwTerminate();
 	std::cout << "Hello, world!\n";
 	return 0;
 }

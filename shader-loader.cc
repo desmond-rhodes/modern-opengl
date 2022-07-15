@@ -1,72 +1,90 @@
 #include "shader-loader.hh"
+#include "cleanup.hh"
+#include <fstream>
 
-GLuint shader_loader::create_program(std::vector<shader_loader::info> const& shader_info) {
-	GLuint program {glCreateProgram()};
-	if (!program)
-		throw shader_loader::acquire_error();
+GLuint create_shader(size_t n, GLenum const type[], char const* const filename[], std::ostream& es) {
+	GLint status;
+	GLint length;
+	char* log {nullptr};
+	optional_cleanup c_log {[&]{
+		if (log)
+			es << log << '\n';
+		else
+			es << "Unable to allocate shader program error log.\n";
+		delete[] log;
+	}, false};
 
-	try {
-		std::vector<GLuint> detach;
+	GLuint pro {glCreateProgram()};
+	if (!pro)
+		return 0;
+	optional_cleanup c_pro {[&]{ glDeleteProgram(pro); }};
 
-		for (auto const& info : shader_info) {
-			std::ifstream file;
-			file.exceptions(std::ios_base::failbit | std::ios_base::badbit);
+	auto det {new (std::nothrow) GLuint[n]};
+	if (!det)
+		return 0;
+	cleanup c_det {[&]{ delete[] det; }};
 
-			file.open(info.file, std::ios_base::in);
-			file.seekg(0, std::ios_base::end);
-			std::string source(file.tellg(), '\0');
+	for (size_t i {0}; i < n; ++i) {
+		std::ifstream file;
+		file.open(filename[i], std::ios_base::in);
+		if (file.fail()) {
+			es << "Unable to open file " << filename[i] << ".\n";
+			return 0;
+		}
+		cleanup c_file {[&]{ file.close(); }};
 
-			file.seekg(0, std::ios_base::beg);
-			file.read(&source[0], source.size());
-			file.close();
+		file.seekg(0, std::ios_base::end);
+		size_t size = file.tellg();
+		auto src {new (std::nothrow) char[size+1]()};
+		if (!src)
+			return 0;
+		cleanup c_src {[&]{ delete[] src; }};
 
-			GLuint shader {glCreateShader(info.type)};
-			if (!shader)
-				throw shader_loader::acquire_error();
-
-			GLchar const* source_ptr {source.c_str()};
-			glShaderSource(shader, 1, &source_ptr, nullptr);
-
-			glCompileShader(shader);
-			glAttachShader(program, shader);
-			glDeleteShader(shader);
-			detach.push_back(shader);
-
-			GLint status;
-			glGetShaderiv(shader, GL_COMPILE_STATUS, &status);
-
-			if (status == GL_FALSE) {
-				GLint length;
-				glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &length);
-
-				std::string log(length, '\0');
-				glGetShaderInfoLog(shader, length, nullptr, &log[0]);
-
-				throw shader_loader::compile_error(log);
-			}
+		file.seekg(0, std::ios_base::beg);
+		file.read(src, size);
+		if (file.fail()) {
+			es << "Unable to read file " << filename[i] << ".\n";
+			return 0;
 		}
 
-		glLinkProgram(program);
-		GLint status;
-		glGetProgramiv(program, GL_LINK_STATUS, &status);
+		GLuint obj {glCreateShader(type[i])};
+		if (!obj)
+			return 0;
+		cleanup c_ojb {[&]{ glDeleteShader(obj); }};
 
+		glShaderSource(obj, 1, &src, nullptr);
+
+		glCompileShader(obj);
+		glGetShaderiv(obj, GL_COMPILE_STATUS, &status);
 		if (status == GL_FALSE) {
-			GLint length;
-			glGetProgramiv(program, GL_INFO_LOG_LENGTH, &length);
-
-			std::string log(length, '\0');
-			glGetProgramInfoLog(program, length, nullptr, &log[0]);
-
-			throw shader_loader::compile_error(log);
+			c_log.enable();
+			glGetShaderiv(obj, GL_INFO_LOG_LENGTH, &length);
+			log = new (std::nothrow) char[length];
+			if (!log)
+				return 0;
+			glGetShaderInfoLog(obj, length, nullptr, log);
+			return 0;
 		}
 
-		for (auto shader : detach)
-			glDetachShader(program, shader);
-	}
-	catch (...) {
-		glDeleteProgram(program);
-		throw;
+		glAttachShader(pro, obj);
+		det[i] = obj;
 	}
 
-	return program;
+	glLinkProgram(pro);
+	glGetProgramiv(pro, GL_LINK_STATUS, &status);
+	if (status == GL_FALSE) {
+		c_log.enable();
+		glGetProgramiv(pro, GL_INFO_LOG_LENGTH, &length);
+		log = new (std::nothrow) char[length];
+		if (!log)
+			return 0;
+		glGetProgramInfoLog(pro, length, nullptr, log);
+		return 0;
+	}
+
+	for (size_t i {0}; i < n; ++i)
+		glDetachShader(pro, det[i]);
+
+	c_pro.disable();
+	return pro;
 }

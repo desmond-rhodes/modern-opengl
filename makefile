@@ -1,5 +1,5 @@
 OUT := opengl
-OBJS := main.o shader-loader.o
+OBJS := main.o shader-loader.o cleanup.o
 DEPS := $(OBJS:%.o=%.d)
 
 CC := x86_64-w64-mingw32-gcc-posix
