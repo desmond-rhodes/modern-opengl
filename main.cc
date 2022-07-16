@@ -12,7 +12,7 @@ int main() {
 
 	if (!glfwInit())
 		return -1;
-	cleanup c_glfw {[&]{ glfwTerminate(); }};
+	cleanup c_glfw {[]{ glfwTerminate(); }};
 
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 5);
@@ -32,15 +32,15 @@ int main() {
 
 	std::cout << "OpenGL " << glGetString(GL_VERSION) << ", GLSL " << glGetString(GL_SHADING_LANGUAGE_VERSION) << '\n';
 
-	GLuint shader;
+	GLuint sha;
 	{
 		GLenum const type[] {GL_VERTEX_SHADER, GL_FRAGMENT_SHADER};
 		char const* const filename[] {"shader.vert", "shader.frag"};
-		shader = create_shader(2, type, filename, std::cerr);
-		if (!shader)
+		sha = create_shader(2, type, filename, std::cerr);
+		if (!sha)
 			return -1;
 	}
-	glUseProgram(shader);
+	glUseProgram(sha);
 
 	GLuint const bindingindex {0};
 	GLuint vao;
@@ -48,12 +48,12 @@ int main() {
 		glGenVertexArrays(1, &vao);
 		glBindVertexArray(vao);
 
-		GLint const attrib_position {glGetAttribLocation(shader, "vPosition")};
+		GLint const attrib_position {glGetAttribLocation(sha, "vPosition")};
 		glEnableVertexAttribArray(attrib_position);
 		glVertexAttribFormat(attrib_position, 2, GL_FLOAT, GL_FALSE, 0);
 		glVertexAttribBinding(attrib_position, bindingindex);
 
-		GLint const attrib_color {glGetAttribLocation(shader, "vColour")};
+		GLint const attrib_color {glGetAttribLocation(sha, "vColour")};
 		glEnableVertexAttribArray(attrib_color);
 		glVertexAttribFormat(attrib_color, 3, GL_FLOAT, GL_FALSE, 2*sizeof(GLfloat));
 		glVertexAttribBinding(attrib_color, bindingindex);
@@ -64,10 +64,10 @@ int main() {
 	GLuint vbo;
 	{
 		GLfloat vertex[] {
-			 0.5f,  0.5f, 1.0f, 0.0f, 0.0f,
-			-0.5f,  0.5f, 0.0f, 1.0f, 0.0f,
-			-0.5f, -0.5f, 0.0f, 0.0f, 1.0f,
-			 0.5f, -0.5f, 0.0f, 1.0f, 1.0f
+			-0.5f,  0.5f, 1.0f, 0.0f, 0.0f,
+			 0.5f,  0.5f, 0.0f, 1.0f, 0.0f,
+			 0.5f, -0.5f, 0.0f, 0.0f, 1.0f,
+			-0.5f, -0.5f, 0.0f, 1.0f, 1.0f
 		};
 		glCreateBuffers(1, &vbo);
 		glNamedBufferStorage(vbo, sizeof(vertex), vertex, 0);
@@ -75,7 +75,7 @@ int main() {
 
 	GLuint ebo;
 	{
-		GLuint elements[] {1, 0, 2, 3};
+		GLuint elements[] {0, 1, 2, 0, 2, 3};
 		glCreateBuffers(1, &ebo);
 		glNamedBufferStorage(ebo, sizeof(elements), elements, 0);
 	}
@@ -91,7 +91,9 @@ int main() {
 
 	while (!glfwWindowShouldClose(window)) {
 		glClearBufferfv(GL_COLOR, 0, fill);
-		glDrawElements(GL_TRIANGLE_STRIP, 4, GL_UNSIGNED_INT, 0);
+		// glDrawElements(GL_TRIANGLES, 3, GL_UNSIGNED_INT, 0);
+		// glDrawElements(GL_TRIANGLES, 3, GL_UNSIGNED_INT, reinterpret_cast<void*>(3*sizeof(GLuint)));
+		glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 
 		glfwSwapBuffers(window);
 

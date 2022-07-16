@@ -1,89 +1,108 @@
 #include "shader-loader.hh"
 #include "cleanup.hh"
 #include <fstream>
+#include <filesystem>
 
 GLuint create_shader(size_t n, GLenum const type[], char const* const filename[], std::ostream& es) {
-	GLint status;
-	GLint length;
-	char* log {nullptr};
-	optional_cleanup c_log {[&]{
-		if (log)
-			es << log << '\n';
-		else
-			es << "Unable to allocate shader program error log.\n";
-		delete[] log;
-	}, false};
-
-	GLuint pro {glCreateProgram()};
-	if (!pro)
+	auto const obj {new (std::nothrow) GLuint[n]};
+	if (!obj) {
+		es << "Unable to allocate buffer for shader objects.\n";
 		return 0;
-	optional_cleanup c_pro {[&]{ glDeleteProgram(pro); }};
-
-	auto det {new (std::nothrow) GLuint[n]};
-	if (!det)
-		return 0;
-	cleanup c_det {[&]{ delete[] det; }};
+	}
+	size_t obj_n {0};
+	cleanup c_obj {[&]{
+		for (size_t i {0}; i < obj_n; ++i)
+			glDeleteShader(obj[i]);
+	}};
 
 	for (size_t i {0}; i < n; ++i) {
+		obj[i] = glCreateShader(type[i]);
+		if (!obj[i]) {
+			es << "Unable to create shader object.\n";
+			return 0;
+		}
+		obj_n += 1;
+
 		std::ifstream file;
-		file.open(filename[i], std::ios_base::in);
+		file.open(filename[i]);
 		if (file.fail()) {
 			es << "Unable to open file " << filename[i] << ".\n";
 			return 0;
 		}
-		cleanup c_file {[&]{ file.close(); }};
 
-		file.seekg(0, std::ios_base::end);
-		size_t size = file.tellg();
-		auto src {new (std::nothrow) char[size+1]()};
-		if (!src)
+		std::error_code ec;
+		auto const sz {std::filesystem::file_size(filename[i], ec)};
+		if (ec) {
+			es << "Unable to get size of file " << filename[i] << ".\n";
 			return 0;
+		}
+
+		auto const src {new (std::nothrow) char[sz+1]};
+		if (!src) {
+			es << "Unable to allocate buffer of size " << sz+1 << " bytes to load file " << filename[i] << ".\n";
+			return 0;
+		}
 		cleanup c_src {[&]{ delete[] src; }};
 
-		file.seekg(0, std::ios_base::beg);
-		file.read(src, size);
+		file.read(src, sz);
 		if (file.fail()) {
 			es << "Unable to read file " << filename[i] << ".\n";
 			return 0;
 		}
 
-		GLuint obj {glCreateShader(type[i])};
-		if (!obj)
-			return 0;
-		cleanup c_ojb {[&]{ glDeleteShader(obj); }};
+		src[file.gcount()] = '\0';
 
-		glShaderSource(obj, 1, &src, nullptr);
+		glShaderSource(obj[i], 1, &src, nullptr);
+		glCompileShader(obj[i]);
 
-		glCompileShader(obj);
-		glGetShaderiv(obj, GL_COMPILE_STATUS, &status);
-		if (status == GL_FALSE) {
-			c_log.enable();
-			glGetShaderiv(obj, GL_INFO_LOG_LENGTH, &length);
-			log = new (std::nothrow) char[length];
-			if (!log)
-				return 0;
-			glGetShaderInfoLog(obj, length, nullptr, log);
+		GLint sta;
+		glGetShaderiv(obj[i], GL_COMPILE_STATUS, &sta);
+		if (sta == GL_FALSE) {
+			GLint len;
+			glGetShaderiv(obj[i], GL_INFO_LOG_LENGTH, &len);
+			auto const log {new (std::nothrow) char[len]};
+			if (log) {
+				glGetShaderInfoLog(obj[i], len, nullptr, log);
+				es << log << '\n';
+				delete[] log;
+			}
+			else
+				es << "Unable to allocate buffer of size " << len << " bytes to load error log from compiling shader " << filename[i] << ".\n";
 			return 0;
 		}
-
-		glAttachShader(pro, obj);
-		det[i] = obj;
 	}
 
-	glLinkProgram(pro);
-	glGetProgramiv(pro, GL_LINK_STATUS, &status);
-	if (status == GL_FALSE) {
-		c_log.enable();
-		glGetProgramiv(pro, GL_INFO_LOG_LENGTH, &length);
-		log = new (std::nothrow) char[length];
-		if (!log)
-			return 0;
-		glGetProgramInfoLog(pro, length, nullptr, log);
+	auto const pro {glCreateProgram()};
+	if (!pro) {
+		es << "Unable to create shader program.\n";
 		return 0;
 	}
+	optional_cleanup c_pro {[&]{ glDeleteProgram(pro); }};
 
 	for (size_t i {0}; i < n; ++i)
-		glDetachShader(pro, det[i]);
+		glAttachShader(pro, obj[i]);
+	cleanup d_pro {[&]{
+		for (size_t i {0}; i < n; ++i)
+			glDetachShader(pro, obj[i]);
+	}};
+
+	glLinkProgram(pro);
+
+	GLint sta;
+	glGetProgramiv(pro, GL_LINK_STATUS, &sta);
+	if (sta == GL_FALSE) {
+		GLint len;
+		glGetProgramiv(pro, GL_INFO_LOG_LENGTH, &len);
+		auto const log {new (std::nothrow) char[len]};
+		if (log) {
+			glGetProgramInfoLog(pro, len, nullptr, log);
+			es << log << '\n';
+			delete[] log;
+		}
+		else
+			es << "Unable to allocate buffer of size " << len << " bytes to load error log from linking shader.\n";
+		return 0;
+	}
 
 	c_pro.disable();
 	return pro;
