@@ -1,8 +1,6 @@
 #include <GL/gl3w.h>
 #include <GLFW/glfw3.h>
 #include <iostream>
-#include <chrono>
-#include <thread>
 
 GLuint shader(size_t, GLenum const[], char const* const[]);
 
@@ -17,6 +15,7 @@ int main() {
 	GLFWwindow* window {glfwCreateWindow(1280, 960, "Modern OpenGL", nullptr, nullptr)};
 	glfwSetFramebufferSizeCallback(window, [](GLFWwindow*, int width, int height) { glViewport(0, 0, width, height); });
 	glfwMakeContextCurrent(window);
+	glfwSwapInterval(1);
 	gl3wInit();
 	std::cout << "OpenGL " << glGetString(GL_VERSION) << ", GLSL " << glGetString(GL_SHADING_LANGUAGE_VERSION) << '\n' << std::flush;
 
@@ -56,7 +55,7 @@ int main() {
 	glVertexAttribFormat(1, 3, GL_FLOAT, GL_FALSE, 2*sizeof(GLfloat));
 
 	GLuint vbo;
-	GLfloat vertex[] {
+	GLfloat const vertex[] {
 		-0.5f,  0.5f, 1.0f, 0.0f, 0.0f,
 		 0.5f,  0.5f, 0.0f, 1.0f, 0.0f,
 		 0.5f, -0.5f, 0.0f, 0.0f, 1.0f,
@@ -67,23 +66,18 @@ int main() {
 	glBindVertexBuffer(0, vbo, 0, 5*sizeof(GLfloat));
 
 	GLuint ebo;
-	GLuint elements[] {0, 1, 2, 0, 2, 3};
+	GLuint const elements[] {0, 1, 2, 0, 2, 3};
 	glCreateBuffers(1, &ebo);
 	glNamedBufferStorage(ebo, sizeof(elements), elements, 0);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
 
 	GLfloat const fill[] {0.0f, 0.0f, 0.0f, 0.0f};
 
-	auto poll_limit_last {std::chrono::steady_clock::now()};
-	std::chrono::microseconds poll_limit_time {16666}; /* 60Hz */
-
 	while (!glfwWindowShouldClose(window)) {
 		glClearBufferfv(GL_COLOR, 0, fill);
 		glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 		glfwSwapBuffers(window);
 		glfwPollEvents();
-		std::this_thread::sleep_for(poll_limit_time - (std::chrono::steady_clock::now() - poll_limit_last));
-		poll_limit_last += poll_limit_time;
 	}
 
 	return 0;
