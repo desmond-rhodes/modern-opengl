@@ -23,11 +23,12 @@ int main() {
 
 	char const* const src[] {
 		"#version 450 core\n"
+		"layout (location = 3) uniform mat4 transform;\n"
 		"layout (location = 0) in vec4 vPosition;\n"
 		"layout (location = 1) in vec4 vColor;\n"
 		"out vec4 fColor;\n"
 		"void main() {\n"
-		"	gl_Position = vPosition;\n"
+		"	gl_Position = vPosition * transform;\n"
 		"	fColor = vColor;\n"
 		"}\n"
 	,
@@ -70,6 +71,14 @@ int main() {
 	glCreateBuffers(1, &ebo);
 	glNamedBufferStorage(ebo, sizeof(elements), elements, 0);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
+
+	GLfloat const tra[] {
+		1.0, 0.0, 0.0, 0.0,
+		0.0, 1.0, 0.0, 0.0,
+		0.0, 0.0, 1.0, 0.0,
+		0.0, 0.0, 0.0, 0.5
+	};
+	glUniformMatrix4fv(3, 1, GL_TRUE, tra);
 
 	GLfloat const fill[] {0.0f, 0.0f, 0.0f, 0.0f};
 
