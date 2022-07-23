@@ -23,7 +23,7 @@ int main() {
 
 	char const* const src[] {
 		"#version 450 core\n"
-		"layout (location = 3) uniform mat4 transform;\n"
+		"uniform ubo { mat4 transform; };\n"
 		"layout (location = 0) in vec4 vPosition;\n"
 		"layout (location = 1) in vec4 vColor;\n"
 		"out vec4 fColor;\n"
@@ -48,12 +48,14 @@ int main() {
 	GLuint vao;
 	glGenVertexArrays(1, &vao);
 	glBindVertexArray(vao);
+
 	glEnableVertexAttribArray(0);
-	glEnableVertexAttribArray(1);
-	glVertexAttribBinding(0, 0);
-	glVertexAttribBinding(1, 0);
 	glVertexAttribFormat(0, 2, GL_FLOAT, GL_FALSE, 0);
+	glVertexAttribBinding(0, 0);
+
+	glEnableVertexAttribArray(1);
 	glVertexAttribFormat(1, 3, GL_FLOAT, GL_FALSE, 2*sizeof(GLfloat));
+	glVertexAttribBinding(1, 0);
 
 	GLuint vbo;
 	GLfloat const vertex[] {
@@ -67,18 +69,34 @@ int main() {
 	glBindVertexBuffer(0, vbo, 0, 5*sizeof(GLfloat));
 
 	GLuint ebo;
-	GLuint const elements[] {0, 1, 2, 0, 2, 3};
+	GLuint const element[] {0, 1, 2, 0, 2, 3};
 	glCreateBuffers(1, &ebo);
-	glNamedBufferStorage(ebo, sizeof(elements), elements, 0);
+	glNamedBufferStorage(ebo, sizeof(element), element, 0);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
 
-	GLfloat const tra[] {
+	GLuint ubo;
+	GLfloat const transform[] {
 		1.0, 0.0, 0.0, 0.0,
 		0.0, 1.0, 0.0, 0.0,
 		0.0, 0.0, 1.0, 0.0,
 		0.0, 0.0, 0.0, 0.5
 	};
-	glUniformMatrix4fv(3, 1, GL_TRUE, tra);
+	glGenBuffers(1, &ubo);
+	glBindBuffer(GL_UNIFORM_BUFFER, ubo);
+	auto const uboIndex {glGetUniformBlockIndex(sha, "ubo")};
+	glUniformBlockBinding(sha, uboIndex, 0);
+	GLint uboSize;
+	glGetActiveUniformBlockiv(sha, uboIndex, GL_UNIFORM_BLOCK_DATA_SIZE, &uboSize);
+	char const* uboName {"transform"};
+	GLuint uboIndices;
+	glGetUniformIndices(sha, 1, &uboName, &uboIndices);
+	GLint uboOffset;
+	glGetActiveUniformsiv(sha, 1, &uboIndices, GL_UNIFORM_OFFSET, &uboOffset);
+	auto const buffer {new char[uboSize]};
+	memcpy(buffer+uboOffset, &transform, 16*sizeof(GLfloat));
+	glNamedBufferData(ubo, uboSize, buffer, GL_STATIC_DRAW);
+	delete[] buffer;
+	glBindBufferBase(GL_UNIFORM_BUFFER, 0, ubo);
 
 	GLfloat const fill[] {0.0f, 0.0f, 0.0f, 0.0f};
 
