@@ -66,34 +66,33 @@ int main() {
 		"#version 450 core\n"
 
 		"uniform ubo {"
-		"	mat4 view;"
-		"	mat4 model;"
+		"	mat4 mt;"
+		"	mat4 nt;"
 		"};"
 
 		"layout (location = 0) in vec4 v_position;"
 		"layout (location = 1) in vec4 v_normal;"
 		"layout (location = 2) in vec4 v_color;"
 
-		"out vec3 f_normal;"
+		"out float shade;"
 		"out vec4 f_color;"
 
+		"const vec3 light = normalize(vec3(-1.0, 0.0, -3.0));"
+
 		"void main() {"
-		"	gl_Position = view * model * v_position;"
-		"	f_normal = (model * v_normal).xyz;"
+		"	gl_Position = mt * v_position;"
+		"	shade = dot((nt * v_normal).xyz, -light);"
 		"	f_color = v_color;"
 		"}"
 	,
 		"#version 450 core\n"
 
-		"in vec3 f_normal;"
+		"in float shade;"
 		"in vec4 f_color;"
 
 		"out vec4 color;"
 
-		"const vec3 light = normalize(vec3(-1.0, 0.0, -3.0));"
-
 		"void main() {"
-		"	const float shade = dot(f_normal, -light);"
 		"	color = shade * f_color;"
 		"}\n"
 	};
@@ -173,7 +172,7 @@ int main() {
 	glBindBufferBase(GL_UNIFORM_BUFFER, 0, ubo);
 
 	GLint u_size;
-	char const* u_name[] {"view", "model"};
+	char const* u_name[] {"mt", "nt"};
 	GLuint u_indices[2];
 	GLint u_offset[2];
 	glGetActiveUniformBlockiv(sha, ubo_index, GL_UNIFORM_BLOCK_DATA_SIZE, &u_size);
@@ -187,7 +186,8 @@ int main() {
 	double a {0.0};
 
 	while (!glfwWindowShouldClose(window)) {
-		GLfloat model[16];
+		GLfloat mt[16];
+		GLfloat nt[16];
 		{
 			GLfloat const sina {static_cast<GLfloat>(std::sin(a))};
 			GLfloat const cosa {static_cast<GLfloat>(std::cos(a))};
@@ -200,11 +200,17 @@ int main() {
 			a += 0.011;
 			if (a > 360.0)
 				a -= 360.0;
+			for (size_t i {0}; i < 4; ++i)
+				for (size_t j {0}; j < 4; ++j) {
+					mt[i*4+j] = 0.0f;
+					for (size_t k {0}; k < 4; ++k)
+						mt[i*4+j] += view[k*4+j] * rotate[i*4+k];
+				}
 			for (size_t i {0}; i < 16; ++i)
-				model[i] = rotate[i];
+				nt[i] = rotate[i];
 		}
-		memcpy(buffer+u_offset[0], &view, 16*sizeof(GLfloat));
-		memcpy(buffer+u_offset[1], &model, 16*sizeof(GLfloat));
+		memcpy(buffer+u_offset[0], &mt, 16*sizeof(GLfloat));
+		memcpy(buffer+u_offset[1], &nt, 16*sizeof(GLfloat));
 		glNamedBufferData(ubo, u_size, buffer, GL_STATIC_DRAW);
 		glClearBufferfv(GL_COLOR, 0, color);
 		glClearBufferfv(GL_DEPTH, 0, depth);
