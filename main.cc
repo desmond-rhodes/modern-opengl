@@ -192,10 +192,10 @@ int main() {
 			GLfloat const sina {static_cast<GLfloat>(std::sin(a))};
 			GLfloat const cosa {static_cast<GLfloat>(std::cos(a))};
 			GLfloat const rotate[] {
-				 cosa, 0.0f, sina, 0.0f,
-				 0.0f, 1.0f, 0.0f, 0.0f,
-				-sina, 0.0f, cosa, 0.0f,
-				 0.0f, 0.0f, 0.0f, 1.0f
+				cosa, 0.0f, -sina, 0.0f,
+				0.0f, 1.0f,  0.0f, 0.0f,
+				sina, 0.0f,  cosa, 0.0f,
+				0.0f, 0.0f,  0.0f, 1.0f
 			};
 			a += 0.011;
 			if (a > 360.0)
